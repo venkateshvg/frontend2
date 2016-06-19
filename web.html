@@ -1,0 +1,220 @@
+<!doctype html>
+<html>
+<head>
+	
+	<title>Spider Pong</title>
+
+	
+	<style>
+	canvas {
+		display: block;
+		position: absolute;
+		margin: auto;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		right: 0;
+	}
+	</style>
+</head>
+<body>
+<script>
+var
+count=0,
+WIDTH  = 750,
+HEIGHT = 500,
+pi = Math.PI,
+UpArrow   = 38,
+DownArrow = 40,
+KeyW=87,KeyS=83,
+canvas,
+ctx,
+keystate,
+//player object
+player1= {
+	x: null,
+	y: null,
+	width:  20,
+	height: 100,
+	/**
+	 * Updating position
+	 */
+	update: function() {
+		if (keystate[UpArrow]) this.y -= 8;
+		if (keystate[DownArrow]) this.y += 8;
+		// keep the paddle inside of the canvas
+		this.y = Math.max(Math.min(this.y, HEIGHT - this.height), 0);
+	},
+	//drawing paddle to canvas
+	draw: function() {
+		ctx.fillRect(this.x, this.y, this.width, this.height);
+	}
+},
+//player2
+play2= {
+	x: null,
+	y: null,
+	width:  20,
+	height: 100,
+	//updating position of paddle 
+	update: function() {
+		if (keystate[KeyW]) this.y -= 8;
+		if (keystate[KeyS]) this.y += 8;
+		this.y = Math.max(Math.min(this.y, HEIGHT - this.height), 0);
+	},
+	/**
+	 * Draw the player2 paddle to the canvas
+	 */
+	draw: function() {
+		ctx.fillRect(this.x, this.y, this.width, this.height);
+	}
+},
+//ball object
+ball = {
+	x:   null,
+	y:   null,
+	vel: null,
+	side:  20,
+	speed: 6,
+	//initial random serve
+	serve: function(side) {
+		// set the x and y position
+		var z = Math.random();
+		
+
+		this.x = side===1 ? player1.x+player1.width : play2.x - this.side;
+		this.y = (HEIGHT - this.side)*z;
+		
+		
+		var angle = 0.1*pi*(1 - 2*z);
+		// set velocity direction and magnitude
+		this.vel = {
+			x: side*this.speed*Math.cos(angle),
+			y: this.speed*Math.sin(angle)
+		}
+	},
+	
+	update: function() {
+		// update position with current velocity
+		this.x += this.vel.x;
+		this.y += this.vel.y;
+		// keeping the ball in canvas, changing direction of velocity
+		if (0 > this.y || this.y+this.side > HEIGHT) {
+			
+			
+			this.vel.y *= -1;
+		}
+		
+		var Intersection= function(ax, ay, aw, ah, bx, by, bw, bh) {
+			return ax < bx+bw && ay < by+bh && bx < ax+aw && by < ay+ah;
+		};
+		//Changing control to player1 or 2 
+		var pdle = this.vel.x < 0 ? player1 : play2;
+		if (Intersection(pdle.x, pdle.y, pdle.width, pdle.height,
+				this.x, this.y, this.side, this.side)
+		) {	
+			count+=1;
+			if(count>10 && count<=20)
+			ball.speed=12;
+			if(count>20)
+			ball.speed=18;
+			if(pdle===player1)
+			player1.score+=1;
+			if(pdle===play2)
+			play2.score+=1;
+			// set the x position and calculate reflection angle
+			this.x = pdle===player1 ? player1.x+player1.width : play2.x - this.side;
+			var c = (this.y+this.side - pdle.y)/(pdle.height+this.side);
+			var angle = 0.25*pi*(2*c - 1); 
+			this.vel.x = (pdle===player1 ? 1 : -1)*this.speed*Math.cos(angle);
+			this.vel.y = this.speed*Math.sin(angle);
+		}
+		//when player misses
+		if (0 > this.x+this.side || this.x -this.side> WIDTH) {
+			
+			if(pdle===player1)
+			
+			alert("Player 2 WINS, Click Ok to Restart");
+			else
+			
+			alert("Player 1 WINS,Click Ok to Restart");
+			
+			main();
+			this.serve(isplayer ? 1 : -1);
+		}
+	},
+	//draw ball
+	draw: function() {
+		ctx.fillRect(this.x, this.y, this.side, this.side);
+	}
+};
+//game start
+function main() {
+	// create, initiate and append game canvas
+	count=0;
+	ball.speed=6;
+	canvas = document.createElement("canvas");
+	canvas.width = WIDTH;
+	canvas.height = HEIGHT;
+	ctx = canvas.getContext("2d");
+	document.body.appendChild(canvas);
+	keystate = {};
+	// keep track of keyboard presses
+	document.addEventListener("keydown", function(evt) {
+		keystate[evt.keyCode] = true;
+	});
+	document.addEventListener("keyup", function(evt) {
+		delete keystate[evt.keyCode];
+	});
+	init(); // initiate game objects
+	// game loop function
+	var loop = function() {
+		update();
+		draw();
+		window.requestAnimationFrame(loop, canvas);
+	};
+	window.requestAnimationFrame(loop, canvas);
+}
+//initialization of all game objects
+function init() {
+	player1.score = 0; play2.score = 0;
+	player1.x = player1.width;
+	player1.y = (HEIGHT - player1.height)/2;
+	play2.x = WIDTH - (play2.width + play2.width);
+	play2.y = (HEIGHT - play2.height)/2;
+	ball.serve(1);
+}
+//update
+function update() {
+	ball.update();
+	player1.update();
+	play2.update();
+}
+//drawing all objects and printing score
+function draw() {
+	var t = player1.score + " - " + play2.score;
+	
+	ctx.fillRect(0, 0, WIDTH, HEIGHT);
+	ctx.save();
+	ctx.fillStyle = "#fff";
+	ball.draw();
+	player1.draw();
+	play2.draw();
+	ctx.font="30px Arial";
+	ctx.fillText(t, canvas.width/2 - ctx.measureText(t).width/2, 100);
+	var t1="SPIDER PONG";
+	ctx.fillStyle = "#FF0000";
+	ctx.font="20px Lucida Calligraphy";
+	ctx.fillText(t1, canvas.width/2 - ctx.measureText(t).width/2-60, 50);
+
+	
+	
+	ctx.restore();
+}
+// start and run the game
+main();
+</script>
+</body>
+</html>
+
+                        
